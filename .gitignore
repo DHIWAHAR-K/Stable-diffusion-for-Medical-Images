@@ -2,4 +2,14 @@
 vindr-mammo-a-large-scale-benchmark-dataset-for-computer-aided-detection-and-diagnosis-in-full-field-digital-mammography-1.0.0/
 data/vindr/
 data/vindr_processed/
-data/processed/
+data/rsna_processed/
+data/vindr_rsna/
+data/merged/
+rsna-breast-cancer-detection/
+models/
+results/
+samples/
+graphs/
+wandb/
+__pycache__/
+*.pyc

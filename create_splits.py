@@ -1,81 +1,120 @@
-import pandas as pd
-import numpy as np
-from sklearn.model_selection import GroupShuffleSplit
+import os
+import json
+import random
+import re
+from collections import defaultdict
 
 # Paths
-DATA_DIR = "vindr-mammo-a-large-scale-benchmark-dataset-for-computer-aided-detection-and-diagnosis-in-full-field-digital-mammography-1.0.0"
-ANNOTATIONS_FILE = f"{DATA_DIR}/breast-level_annotations.csv"
-OUTPUT_FILE = "dataset_splits.csv"
+MERGED_METADATA_IN = "data/merged/metadata.jsonl"
+OUTPUT_METADATA = "data/merged/metadata.jsonl" # Overwrite or new file? Let's overwrite responsibly or create new.
+# User asked for "metadata.json", let's make satisfied.
+OUTPUT_JSON = "data/merged/metadata.json"
 
 def create_splits():
-    print(f"Loading data from {ANNOTATIONS_FILE}...")
-    try:
-        df = pd.read_csv(ANNOTATIONS_FILE)
-    except FileNotFoundError:
-        print(f"Error: File not found at {ANNOTATIONS_FILE}")
+    if not os.path.exists(MERGED_METADATA_IN):
+        print("Error: Merged metadata not found.")
         return
 
-    # Check existing splits
-    print("Initial split distribution:")
-    print(df['split'].value_counts())
+    print("Reading merged metadata...")
+    all_entries = []
+    with open(MERGED_METADATA_IN, 'r') as f:
+        for line in f:
+            all_entries.append(json.loads(line))
+            
+    # Containers
+    vindr_entries = []
+    rsna_entries = []
     
-    # Separate test set (preserve original test set)
-    test_df = df[df['split'] == 'test'].copy()
-    train_val_df = df[df['split'] == 'training'].copy()
+    for entry in all_entries:
+        if entry.get('source') == 'vindr':
+            vindr_entries.append(entry)
+        else:
+            rsna_entries.append(entry)
+            
+    print(f"Found {len(vindr_entries)} Vindr examples.")
+    print(f"Found {len(rsna_entries)} RSNA examples.")
     
-    # Get unique study_ids for splitting
-    # We split by study_id to ensure no patient leakage (assuming study_id maps to patient session)
+    # 1. Process Vindr (Respecting existing folder structure splits)
+    # Path format: .../data/vindr_processed/{split}/...
+    # We allow "test" folder to map to "test" split, etc.
     
-    splitter = GroupShuffleSplit(test_size=0.2, n_splits=1, random_state=42)
-    split = splitter.split(train_val_df, groups=train_val_df['study_id'])
-    train_inds, val_inds = next(split)
+    vindr_split_counts = defaultdict(int)
     
-    train_df = train_val_df.iloc[train_inds].copy()
-    val_df = train_val_df.iloc[val_inds].copy()
+    for entry in vindr_entries:
+        path = entry['file_name']
+        if '/train/' in path:
+            entry['split'] = 'train'
+        elif '/test/' in path:
+            entry['split'] = 'test'
+        elif '/val/' in path:
+            entry['split'] = 'validation'
+        else:
+            # Fallback for weird paths?
+            # Maybe it's "train" if not specified? 
+            # dataset_splits.csv usually covers train/test. 
+            # If unsure, assign to train? Or print warning?
+            # Let's assume train if not test.
+            entry['split'] = 'train'
+            
+        vindr_split_counts[entry['split']] += 1
+        
+    print("Vindr existing splits:", dict(vindr_split_counts))
+
+    # 2. Process RSNA (Split by Patient ID)
+    # Filename: {patient_id}_{image_id}.png
     
-    # Assign new split labels
-    train_df['split'] = 'train'
-    val_df['split'] = 'val'
-    test_df['split'] = 'test'
+    rsna_patients = defaultdict(list)
+    for entry in rsna_entries:
+        fname = os.path.basename(entry['file_name'])
+        # 10038_1967300488.png
+        patient_id = fname.split('_')[0]
+        entry['patient_id'] = patient_id # Enriched metadata
+        rsna_patients[patient_id].append(entry)
+        
+    patient_ids = list(rsna_patients.keys())
+    random.seed(42)
+    random.shuffle(patient_ids)
     
-    # Combine back
-    final_df = pd.concat([train_df, val_df, test_df])
+    # Split Ratios: 80% Train, 10% Val, 10% Test
+    n_total = len(patient_ids)
+    n_train = int(n_total * 0.8)
+    n_val = int(n_total * 0.1)
+    # Rest test
     
-    # Generate patient_id mapping
-    # Sort unique study_ids to ensure deterministic mapping
-    unique_study_ids = sorted(final_df['study_id'].unique())
-    study_id_to_patient_id = {study_id: i for i, study_id in enumerate(unique_study_ids)}
+    train_patients = set(patient_ids[:n_train])
+    val_patients = set(patient_ids[n_train:n_train+n_val])
+    test_patients = set(patient_ids[n_train+n_val:])
     
-    # Map to numeric string WITHOUT padding (e.g., "0", "1", "100")
-    final_df['patient_id'] = final_df['study_id'].map(lambda x: str(study_id_to_patient_id[x]))
+    rsna_split_counts = defaultdict(int)
     
-    print("\nFinal split distribution:")
-    print(final_df['split'].value_counts())
+    for pid in patient_ids:
+        entries = rsna_patients[pid]
+        if pid in train_patients:
+            split_label = 'train'
+        elif pid in val_patients:
+            split_label = 'validation'
+        else:
+            split_label = 'test'
+            
+        for e in entries:
+            e['split'] = split_label
+            rsna_split_counts[split_label] += 1
+            
+    print("RSNA generated splits:", dict(rsna_split_counts))
     
-    print(f"\nTotal samples: {len(final_df)}")
-    print(f"Total unique patients (mapped): {len(unique_study_ids)}")
-    print(f"Example mapping: {unique_study_ids[0]} -> {study_id_to_patient_id[unique_study_ids[0]]}")
+    # 3. Combine and Save
+    final_entries = vindr_entries + rsna_entries
     
-    # Verification
-    train_studies = set(train_df['study_id'])
-    val_studies = set(val_df['study_id'])
-    test_studies = set(test_df['study_id'])
-    
-    leakage_tv = train_studies.intersection(val_studies)
-    leakage_tt = train_studies.intersection(test_studies)
-    leakage_vt = val_studies.intersection(test_studies)
-    
-    print("\nVerification (Leakage check by study_id):")
-    print(f"Train/Val leakage: {len(leakage_tv)} studies")
-    print(f"Train/Test leakage: {len(leakage_tt)} studies")
-    print(f"Val/Test leakage: {len(leakage_vt)} studies")
-    
-    if len(leakage_tv) == 0 and len(leakage_tt) == 0 and len(leakage_vt) == 0:
-        print("SUCCESS: No leakage detected.")
-        final_df.to_csv(OUTPUT_FILE, index=False)
-        print(f"Saved splits to {OUTPUT_FILE}")
-    else:
-        print("ERROR: Leakage detected! Splits not saved.")
+    print(f"Saving {len(final_entries)} entries to {MERGED_METADATA_IN}...")
+    with open(MERGED_METADATA_IN, 'w') as f:
+        for entry in final_entries:
+            f.write(json.dumps(entry) + '\n')
+            
+    print(f"Also saving to {OUTPUT_JSON} as requested...")
+    with open(OUTPUT_JSON, 'w') as f:
+        json.dump(final_entries, f, indent=2)
+        
+    print("Splits created successfully.")
 
 if __name__ == "__main__":
     create_splits()

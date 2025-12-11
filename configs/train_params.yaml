@@ -1,0 +1,40 @@
+project_name: "medical-sd-research"
+experiment_name: "baseline-v1.5"
+
+model:
+  pretrained_model_name_or_path: "runwayml/stable-diffusion-v1-5"
+  revision: null
+  variant: null
+  tokenizer_name: null
+
+data:
+  data_dir: "data/vindr_rsna"
+  resolution: 512
+  center_crop: true
+  random_flip: true
+  train_batch_size: 8
+  dataloader_num_workers: 8
+
+training:
+  seed: 42
+  num_train_epochs: 50
+  max_train_steps: null # If null, calculated from epochs
+  learning_rate: 1.0e-5
+  lr_scheduler: "constant"
+  lr_warmup_steps: 0
+  gradient_accumulation_steps: 4
+  max_grad_norm: 1.0
+  mixed_precision: "fp16" # "no", "fp16", "bf16"
+  checkpointing_steps: 500
+  validation_epochs: 5 # Generate samples every X epochs
+
+optimization:
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  adam_weight_decay: 1.0e-2
+  adam_epsilon: 1.0e-8
+
+output:
+  output_dir: "."
+  logging_dir: "logs"
+  save_model_every_epoch: false

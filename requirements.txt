@@ -7,3 +7,9 @@ torch
 torchvision
 datasets
 wandb
+pandas
+matplotlib
+pyyaml
+torchmetrics
+lpips
+clean-fid

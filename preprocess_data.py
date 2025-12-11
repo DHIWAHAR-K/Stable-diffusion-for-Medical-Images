@@ -5,6 +5,7 @@ from PIL import Image
 from tqdm import tqdm
 import json
 import pandas as pd
+from prompts import MedicalPromptGenerator
 
 # Paths
 DATA_DIR = "data/vindr"
@@ -34,19 +35,22 @@ def preprocess():
     
     metadata_entries = []
     
+    # Initialize Prompt Generator
+    prompt_gen = MedicalPromptGenerator()
+    
     print("Starting preprocessing...")
     success_count = 0
     error_count = 0
 
     for idx, row in tqdm(df.iterrows(), total=len(df), desc="Processing images"):
-        file_path = row['file_path'] # Relative path from data/vindr/ e.g. train/High_Density/0/0_L_...
+        file_path = row['file_path'] # Relative path e.g. train/High_Density/0/0_L_...
         full_dicom_path = os.path.join(DATA_DIR, file_path)
         
+        # Parsing info
         density_class = row['density_class']
+        filename = os.path.basename(file_path)
         
         # New relative path for processed image
-        # Keeping structure: train/High_Density/0/image.png
-        # file_path ends with .dicom, change to .png
         rel_png_path = file_path.replace('.dicom', '.png')
         full_png_path = os.path.join(PROCESSED_DIR, rel_png_path)
         
@@ -68,18 +72,20 @@ def preprocess():
             # Save
             image.save(full_png_path)
             
-            # Add metadata
-            # Prompt: "mammogram of density {class}"
+            # Generate Rich Prompt
+            prompt = prompt_gen.generate_prompt(filename, fallback_density_class=density_class)
+            
             entry = {
                 "file_name": rel_png_path,
-                "text": f"mammogram of density {density_class}"
+                "text": prompt,
+                "density_class": density_class # Keep raw class too if needed
             }
             metadata_entries.append(entry)
             
             success_count += 1
             
         except Exception as e:
-            print(f"Error processing {full_dicom_path}: {e}")
+            # print(f"Error processing {full_dicom_path}: {e}") # Reduce spam
             error_count += 1
 
     # Save metadata.jsonl

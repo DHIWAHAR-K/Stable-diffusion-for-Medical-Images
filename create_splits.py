@@ -46,16 +46,15 @@ def create_splits():
     unique_study_ids = sorted(final_df['study_id'].unique())
     study_id_to_patient_id = {study_id: i for i, study_id in enumerate(unique_study_ids)}
     
-    # Map to numeric string with padding (e.g., 00001)
-    # Using 5 digits to cover all 5000 studies
-    final_df['patient_id'] = final_df['study_id'].map(lambda x: f"{study_id_to_patient_id[x]:05d}")
+    # Map to numeric string WITHOUT padding (e.g., "0", "1", "100")
+    final_df['patient_id'] = final_df['study_id'].map(lambda x: str(study_id_to_patient_id[x]))
     
     print("\nFinal split distribution:")
     print(final_df['split'].value_counts())
     
     print(f"\nTotal samples: {len(final_df)}")
     print(f"Total unique patients (mapped): {len(unique_study_ids)}")
-    print(f"Example mapping: {unique_study_ids[0]} -> {study_id_to_patient_id[unique_study_ids[0]]:05d}")
+    print(f"Example mapping: {unique_study_ids[0]} -> {study_id_to_patient_id[unique_study_ids[0]]}")
     
     # Verification
     train_studies = set(train_df['study_id'])

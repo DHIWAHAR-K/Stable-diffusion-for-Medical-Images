@@ -6,8 +6,8 @@ from tqdm import tqdm
 # Paths
 DATA_DIR = "vindr-mammo-a-large-scale-benchmark-dataset-for-computer-aided-detection-and-diagnosis-in-full-field-digital-mammography-1.0.0"
 IMAGES_DIR = f"{DATA_DIR}/images"
-SPLIT_FILE = "dataset_splits.csv"
-OUTPUT_DIR = "data/vindr" # Updated output directory
+SPLIT_FILE = "dataset_splits.csv" # Reads from root where create_splits.py saves
+OUTPUT_DIR = "data/vindr" 
 OUTPUT_CSV = os.path.join(OUTPUT_DIR, "dataset_splits.csv")
 
 def sanitize(text):

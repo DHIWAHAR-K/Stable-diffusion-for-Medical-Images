@@ -1,7 +1,45 @@
 import csv
 import os
 import wandb
+import sys
 from datetime import datetime
+
+class Console:
+    @staticmethod
+    def print(text):
+        print(text)
+
+    @staticmethod
+    def rule(title="", char="─", width=80):
+        print(f"{char * width}")
+        if title:
+            print(f"  {title}")
+        print(f"{char * width}")
+
+    @staticmethod
+    def box(title, content_dict=None, text=None, width=80):
+        print(f"{'=' * width}")
+        print(f"  {title.upper()}")
+        print(f"{'=' * width}")
+        if content_dict:
+            for k, v in content_dict.items():
+                print(f"    {k:<25} {v}")
+        if text:
+            print(f"  {text}")
+        print(f"{'=' * width}")
+
+    @staticmethod
+    def log_epoch_summary(epoch, total_epochs, metrics, width=80):
+        print("\n")
+        print(f"{'─' * width}")
+        print(f"  Epoch {epoch}/{total_epochs} Summary")
+        print(f"{'─' * width}")
+        for k, v in metrics.items():
+            if isinstance(v, float):
+                print(f"    {k:<20} {v:.6f}")
+            else:
+                print(f"    {k:<20} {v}")
+        print("\n")
 
 class MetricLogger:
     def __init__(self, log_dir, project_name=None, config=None):
@@ -23,16 +61,9 @@ class MetricLogger:
             wandb.init(project=self.project_name, config=self.config)
 
     def log(self, metrics):
-        # Metrics is a dict
-        # Print to console
-        # log_str = " | ".join([f"{k}: {v:.4f}" if isinstance(v, float) else f"{k}: {v}" for k, v in metrics.items()])
-        # print(f"Log: {log_str}")
-
         # Save to CSV
-        # Ensure all fields are present (fill with None if missing)
         row = {k: metrics.get(k, None) for k in self.fieldnames}
         
-        # Open in append mode each time to be safe against crashes
         with open(self.csv_file, 'a', newline='') as f:
             writer = csv.DictWriter(f, fieldnames=self.fieldnames)
             writer.writerow(row)

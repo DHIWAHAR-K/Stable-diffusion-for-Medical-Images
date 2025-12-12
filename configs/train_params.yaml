@@ -12,7 +12,7 @@ data:
   resolution: 512
   center_crop: true
   random_flip: true
-  train_batch_size: 8
+  train_batch_size: 16
   dataloader_num_workers: 8
 
 training:
@@ -20,13 +20,14 @@ training:
   num_train_epochs: 50
   max_train_steps: null # If null, calculated from epochs
   learning_rate: 1.0e-5
-  lr_scheduler: "constant"
-  lr_warmup_steps: 0
-  gradient_accumulation_steps: 4
+  lr_scheduler: "cosine"
+  lr_warmup_steps: 500
+  gradient_accumulation_steps: 2
   max_grad_norm: 1.0
   mixed_precision: "fp16" # "no", "fp16", "bf16"
   checkpointing_steps: 500
   validation_epochs: 5 # Generate samples every X epochs
+  early_stopping_patience: 10
 
 optimization:
   adam_beta1: 0.9

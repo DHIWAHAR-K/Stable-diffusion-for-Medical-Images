@@ -189,19 +189,6 @@ Run `benchmark.py` to evaluate model performance and generation quality metrics.
 3. Enable mixed precision training
 4. Increase batch size if memory allows
 
-## Citation
-
-If you use this code in your research, please cite:
-
-```bibtex
-@software{stable_diffusion_medical,
-  author = {DHIWAHAR-K},
-  title = {Stable Diffusion for Medical Images},
-  year = {2025},
-  url = {https://github.com/DHIWAHAR-K/Stable-diffusion-for-Medical-Images}
-}
-```
-
 ## License
 
 This project is provided for research and educational purposes.
